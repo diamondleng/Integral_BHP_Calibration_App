@@ -14,6 +14,34 @@ calib_result_file = st.file_uploader("Upload Calibration Result Excel", type=["x
 field_data_file = st.file_uploader("Upload Calibration Field Data Excel", type=["xlsx"])
 dat_file = st.file_uploader("Upload Simulation .dat File", type=["dat"])
 
+formation_mapping = {}
+
+if calib_result_file and field_data_file and dat_file:
+    if st.button("Initialize Formations"):
+        with st.expander("Define Formations by Layer Numbers", expanded=True):
+            formation_inputs = {}
+            max_formations = 10  # Allow user to define up to 10 formations
+            for i in range(max_formations):
+                col1, col2 = st.columns(2)
+                with col1:
+                    name = st.text_input(f"Formation {i+1} Name", key=f"name_{i}")
+                with col2:
+                    layers = st.text_input(f"Formation {i+1} Layers (comma-separated)", key=f"layers_{i}")
+                if name and layers:
+                    try:
+                        layer_nums = set(map(int, layers.split(",")))
+                        formation_inputs[name] = layer_nums
+                    except ValueError:
+                        st.warning(f"Invalid layer input for formation {name}")
+            if formation_inputs:
+                formation_mapping = formation_inputs
+                st.session_state["formation_mapping"] = formation_mapping
+                st.success("Formation mapping initialized. Rerun to apply.")
+
+# Load formation mapping from session state if available
+if "formation_mapping" in st.session_state:
+    formation_mapping = st.session_state["formation_mapping"]
+
 # Initialize DataFrames
 df_wells = pd.DataFrame()
 
@@ -51,12 +79,10 @@ if dat_file is not None:
                         well_data[current_well]["location"] = (x, y)
                     well_data[current_well]["layers"].add(z)
 
-                    if z in {1, 2, 3, 4}:
-                        well_data[current_well]["formation"].add("BELL")
-                    if z in {7, 8, 9}:
-                        well_data[current_well]["formation"].add("CHERRY")
-                    if z in {10, 11, 12}:
-                        well_data[current_well]["formation"].add("BRUSHY")
+                    # Custom formation logic from user input
+                    for formation_name, layer_set in formation_mapping.items():
+                        if z in layer_set:
+                            well_data[current_well]["formation"].add(formation_name)
                 j += 1
 
     df_wells = pd.DataFrame.from_dict(well_data, orient="index")
@@ -93,7 +119,7 @@ if not df_wells.empty:
             lambda well: df_wells.loc[well, "formation"][0] if well in df_wells.index and df_wells.loc[well, "formation"] else None
         )
 
-        formation_colors = {'BELL': 'blue', 'CHERRY': 'green', 'BRUSHY': 'orange'}
+        formation_colors = {f: c for f, c in zip(all_formations, ["blue", "green", "orange", "red", "purple", "brown"])}
 
         def get_color(formation):
             return formation_colors.get(formation, "gray")
