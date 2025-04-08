@@ -165,6 +165,16 @@ if not df_wells.empty:
         axes[0].set_ylim(lower_lim, upper_lim)
         axes[0].set_title("Simulation vs B3 Data (Scatter Plot)")
 
+        # Add legend showing fraction within threshold for each formation
+        formation_fractions = {}
+        for formation in all_formations:
+            subset = merged_df[merged_df["formation"] == formation]
+            if not subset.empty:
+                frac = (subset["Residual"] <= threshold_fixed).mean()
+                label = f"{formation} ({frac:.1%})"
+                axes[0].scatter([], [], color=formation_colors.get(formation, "gray"), label=label)
+        axes[0].legend(title="Formation (Within ±1000 psi)")
+
         x_bins = np.arange(lower_lim, upper_lim, 100)
         y_bins = np.arange(lower_lim, upper_lim, 100)
         hist = axes[1].hist2d(merged_df["BHP Simulation"], merged_df["BHP B3"], bins=[x_bins, y_bins], cmap="Reds")
