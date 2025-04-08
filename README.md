@@ -5,7 +5,7 @@ This Streamlit web application visualizes bottom-hole pressure (BHP) calibration
 
 ## 🌐 Live App
 
-[👉 Click here to open the app](https://your-streamlit-app-url.streamlit.app)  
+[👉 Click here to open the app](https://integralbhpcalibrationapp-e8jien3xeyr4z4kmf5zyta.streamlit.app/)  
 *(Replace with actual URL after deploying)*
 
 ---
