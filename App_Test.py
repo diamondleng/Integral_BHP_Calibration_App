@@ -14,33 +14,52 @@ calib_result_file = st.file_uploader("Upload Calibration Result Excel", type=["x
 field_data_file = st.file_uploader("Upload Calibration Field Data Excel", type=["xlsx"])
 dat_file = st.file_uploader("Upload Simulation .dat File", type=["dat"])
 
-formation_mapping = {}
+# Set default formation mapping only once
+if "formation_mapping" not in st.session_state:
+    st.session_state["formation_mapping"] = {
+        "BELL": {1, 2, 3, 4},
+        "CHERRY": {7, 8, 9},
+        "BRUSHY": {10, 11, 12}
+    }
+
+formation_mapping = st.session_state["formation_mapping"]
 
 if calib_result_file and field_data_file and dat_file:
     if st.button("Initialize Formations"):
-        with st.expander("Define Formations by Layer Numbers", expanded=True):
-            formation_inputs = {}
-            max_formations = 10  # Allow user to define up to 10 formations
-            for i in range(max_formations):
-                col1, col2 = st.columns(2)
-                with col1:
-                    name = st.text_input(f"Formation {i+1} Name", key=f"name_{i}")
-                with col2:
-                    layers = st.text_input(f"Formation {i+1} Layers (comma-separated)", key=f"layers_{i}")
-                if name and layers:
-                    try:
-                        layer_nums = set(map(int, layers.split(",")))
-                        formation_inputs[name] = layer_nums
-                    except ValueError:
-                        st.warning(f"Invalid layer input for formation {name}")
-            if formation_inputs:
-                formation_mapping = formation_inputs
-                st.session_state["formation_mapping"] = formation_mapping
-                st.success("Formation mapping initialized. Rerun to apply.")
+        st.session_state["show_formation_form"] = True
 
-# Load formation mapping from session state if available
-if "formation_mapping" in st.session_state:
-    formation_mapping = st.session_state["formation_mapping"]
+if st.session_state.get("show_formation_form"):
+    with st.expander("Define Formations by Layer Numbers", expanded=True):
+        formation_inputs = {}
+        max_formations = 10
+        for i in range(max_formations):
+            col1, col2 = st.columns(2)
+            name_key = f"name_{i}"
+            layers_key = f"layers_{i}"
+
+            if name_key not in st.session_state:
+                st.session_state[name_key] = ""
+            if layers_key not in st.session_state:
+                st.session_state[layers_key] = ""
+
+            with col1:
+                name = st.text_input(f"Formation {i+1} Name", value=st.session_state[name_key], key=name_key)
+            with col2:
+                layers = st.text_input(f"Formation {i+1} Layers (comma-separated)", value=st.session_state[layers_key], key=layers_key)
+
+            if name and layers:
+                try:
+                    layer_nums = set(map(int, layers.split(",")))
+                    formation_inputs[name] = layer_nums
+                except ValueError:
+                    st.warning(f"Invalid layer input for formation {name}")
+
+        if st.button("Apply Formation Mapping") and formation_inputs:
+            st.session_state["formation_mapping"] = formation_inputs
+            st.success("Formation mapping updated. Rerun to apply.")
+            st.rerun()
+
+formation_mapping = st.session_state["formation_mapping"]
 
 # Initialize DataFrames
 df_wells = pd.DataFrame()
@@ -79,7 +98,6 @@ if dat_file is not None:
                         well_data[current_well]["location"] = (x, y)
                     well_data[current_well]["layers"].add(z)
 
-                    # Custom formation logic from user input
                     for formation_name, layer_set in formation_mapping.items():
                         if z in layer_set:
                             well_data[current_well]["formation"].add(formation_name)
@@ -139,7 +157,6 @@ if not df_wells.empty:
         fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(16, 6))
         upper_lim, lower_lim = 7000, 0
 
-        # Scatter Plot
         axes[0].scatter(merged_df["BHP Simulation"], merged_df["BHP B3"], c=merged_df["Color"], alpha=0.6)
         axes[0].plot([lower_lim, upper_lim], [lower_lim, upper_lim], color="red", linestyle="--", linewidth=2)
         axes[0].plot([lower_lim, upper_lim], [lower_lim + threshold_fixed, upper_lim + threshold_fixed], color="blue", linestyle="--")
@@ -148,7 +165,6 @@ if not df_wells.empty:
         axes[0].set_ylim(lower_lim, upper_lim)
         axes[0].set_title("Simulation vs B3 Data (Scatter Plot)")
 
-        # Density Plot
         x_bins = np.arange(lower_lim, upper_lim, 100)
         y_bins = np.arange(lower_lim, upper_lim, 100)
         hist = axes[1].hist2d(merged_df["BHP Simulation"], merged_df["BHP B3"], bins=[x_bins, y_bins], cmap="Reds")
